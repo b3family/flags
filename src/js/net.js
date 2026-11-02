@@ -45,6 +45,7 @@ export const joinRoom = (code, profile) =>
   call('join_room', { p_code: code, p_name: profile.name, p_avatar: profile.avatar });
 
 export const setRoomSet = (code, setId) => call('set_room_set', { p_code: code, p_set_id: setId });
+export const setRoomSeconds = (code, seconds) => call('set_room_seconds', { p_code: code, p_seconds: seconds });
 export const setReady = (code, ready) => call('set_ready', { p_code: code, p_ready: ready });
 export const finishRoom = (code) => call('finish_room', { p_code: code });
 export const resetRoom = (code) => call('reset_room', { p_code: code });

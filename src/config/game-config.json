@@ -1,5 +1,6 @@
 {
   "questionTimeSeconds": 10,
+  "questionTimeOptions": [5, 10, 15],
   "questionsPerMatch": 10,
   "distractorCount": 3,
   "minPointsCorrect": 1,

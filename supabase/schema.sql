@@ -23,6 +23,11 @@ create table if not exists public.rooms (
   created_at   timestamptz not null default now()
 );
 
+-- Thời gian mỗi câu (giây) do chủ phòng chọn. `add column if not exists` để chạy lại được trên DB cũ.
+alter table public.rooms
+  add column if not exists question_seconds int not null default 10
+  check (question_seconds in (5, 10, 15));
+
 create index if not exists rooms_host_id_idx on public.rooms (host_id);
 create index if not exists rooms_created_at_idx on public.rooms (created_at);
 
@@ -131,6 +136,32 @@ begin
 
   update public.rooms
      set set_id = p_set_id, host_ready = false, guest_ready = false
+   where code = upper(btrim(p_code))
+     and host_id = auth.uid()
+     and status in ('waiting', 'lobby')
+  returning * into v_room;
+
+  if not found then raise exception 'NOT_ALLOWED'; end if;
+  return v_room;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Chủ phòng chọn thời gian mỗi câu: 5, 10 hoặc 15 giây.
+-- ---------------------------------------------------------------------------
+create or replace function public.set_room_seconds(p_code text, p_seconds int)
+returns public.rooms
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_room public.rooms;
+begin
+  if p_seconds is null or p_seconds not in (5, 10, 15) then raise exception 'BAD_SECONDS'; end if;
+
+  update public.rooms
+     set question_seconds = p_seconds, host_ready = false, guest_ready = false
    where code = upper(btrim(p_code))
      and host_id = auth.uid()
      and status in ('waiting', 'lobby')
@@ -274,6 +305,7 @@ $$;
 revoke execute on function public.create_room(text, text) from public, anon;
 revoke execute on function public.join_room(text, text, text) from public, anon;
 revoke execute on function public.set_room_set(text, text) from public, anon;
+revoke execute on function public.set_room_seconds(text, int) from public, anon;
 revoke execute on function public.set_ready(text, boolean) from public, anon;
 revoke execute on function public.finish_room(text) from public, anon;
 revoke execute on function public.reset_room(text) from public, anon;
@@ -282,6 +314,7 @@ revoke execute on function public.leave_room(text) from public, anon;
 grant execute on function public.create_room(text, text) to authenticated;
 grant execute on function public.join_room(text, text, text) to authenticated;
 grant execute on function public.set_room_set(text, text) to authenticated;
+grant execute on function public.set_room_seconds(text, int) to authenticated;
 grant execute on function public.set_ready(text, boolean) to authenticated;
 grant execute on function public.finish_room(text) to authenticated;
 grant execute on function public.reset_room(text) to authenticated;

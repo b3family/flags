@@ -14,6 +14,10 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <button id="btn-qr" class="qr-btn" aria-label="Hiện mã QR cho máy khác quét">
+    <span aria-hidden="true">📲</span><span class="qr-btn-text">QR</span>
+  </button>
+
   <main id="app">
 
     <section id="screen-welcome" class="screen" hidden>
@@ -34,14 +38,7 @@
       <h2 class="title">Cùng đấu cờ nào!</h2>
       <button id="btn-create-room" class="btn btn-primary" disabled>🏠 Tạo phòng</button>
       <button id="btn-join-room" class="btn btn-secondary" disabled>🔑 Vào phòng</button>
-      <button id="btn-local" class="btn btn-accent">📱 2 bé chơi chung 1 iPad</button>
       <p id="net-hint" class="hint small">Đang kết nối mạng...</p>
-    </section>
-
-    <section id="screen-sets" class="screen" hidden>
-      <h2 class="title">Chọn bộ cờ</h2>
-      <div id="set-grid" class="set-grid"></div>
-      <button id="btn-sets-back" class="btn btn-small btn-ghost">← Quay lại</button>
     </section>
 
     <section id="screen-join" class="screen" hidden>
@@ -53,7 +50,7 @@
     </section>
 
     <section id="screen-room" class="screen" hidden>
-      <p class="hint">Mã phòng — bảo bạn nhập mã này nhé</p>
+      <p class="hint">Mã phòng — bảo bạn nhập mã hoặc quét QR nhé</p>
       <div id="room-code" class="room-code"></div>
       <div class="room-players">
         <div id="room-me" class="pcard"></div>
@@ -61,30 +58,44 @@
       </div>
       <p id="room-set-label" class="hint">Bộ cờ</p>
       <div id="room-sets" class="chips"></div>
+      <p id="room-time-label" class="hint">Thời gian mỗi câu</p>
+      <div id="room-times" class="chips"></div>
       <button id="btn-ready" class="btn btn-primary" disabled>Sẵn sàng!</button>
       <button id="btn-room-leave" class="btn btn-small btn-ghost">← Rời phòng</button>
     </section>
 
     <section id="screen-game" class="screen screen-game" hidden>
-      <div id="panel-top" class="panel panel-flip">
-        <div class="panel-head"><span id="top-avatar"></span><span id="top-name"></span><span id="top-tick" class="tick" hidden>✅</span><b id="top-score" class="score">0</b></div>
-        <div id="top-options" class="options"></div>
+      <div class="opp-bar">
+        <span id="top-avatar" class="bar-avatar"></span>
+        <span id="top-name" class="bar-name"></span>
+        <span id="top-tick" class="tick" hidden>✅</span>
+        <span id="qcount" class="qcount"></span>
+        <b id="top-score" class="score">0</b>
       </div>
-      <div class="stage">
-        <div class="timer"><div id="timer-bar" class="timer-bar"></div><span id="timer-num" class="timer-num">10</span></div>
-        <div class="qcount" id="qcount"></div>
-        <div id="flag" class="flag-box"></div>
-        <div id="feedback" class="feedback"></div>
+      <div class="timer"><div id="timer-bar" class="timer-bar"></div><span id="timer-num" class="timer-num">10</span></div>
+      <div id="flag" class="flag-box"></div>
+      <div id="feedback" class="feedback"></div>
+      <div class="me-bar">
+        <span id="bot-avatar" class="bar-avatar"></span>
+        <span id="bot-name" class="bar-name"></span>
+        <b id="bot-score" class="score">0</b>
       </div>
-      <div id="panel-bottom" class="panel">
-        <div class="panel-head"><span id="bot-avatar"></span><span id="bot-name"></span><b id="bot-score" class="score">0</b></div>
-        <div id="bot-options" class="options"></div>
-      </div>
+      <div id="bot-options" class="options"></div>
     </section>
 
   </main>
 
   <div id="toast" class="toast" role="status" hidden></div>
+
+  <div id="qr-modal" class="popup" hidden>
+    <div class="popup-card">
+      <h2>Quét để chơi cùng! 📲</h2>
+      <canvas id="qr-canvas" class="qr-canvas" width="320" height="320"></canvas>
+      <p id="qr-note"></p>
+      <p id="qr-url" class="qr-url"></p>
+      <button id="qr-close" class="btn btn-primary">Đóng</button>
+    </div>
+  </div>
 
   <div id="popup" class="popup" hidden>
     <div class="popup-card">
