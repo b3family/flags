@@ -1,0 +1,13 @@
+{
+  "questionTimeSeconds": 10,
+  "questionsPerMatch": 10,
+  "distractorCount": 3,
+  "minPointsCorrect": 1,
+  "revealDelayMs": 1400,
+  "opponentGraceMs": 1500,
+  "roomGoneSeconds": 15,
+  "roomPollMs": 2500,
+  "disconnectGraceSeconds": 10,
+  "disconnectForfeitSeconds": 30,
+  "nameMaxLength": 12
+}

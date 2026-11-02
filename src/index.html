@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#5b3df5">
+  <title>Cờ Thủ Nhí</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app">
+
+    <section id="screen-welcome" class="screen" hidden>
+      <h1 class="logo">Cờ Thủ Nhí 🚩</h1>
+      <p class="hint">Bé tên là gì nhỉ?</p>
+      <input id="name-input" class="text-input" type="text" maxlength="12" autocomplete="off" placeholder="Nhập tên bé">
+      <p class="hint">Chọn bạn đồng hành</p>
+      <div id="avatar-grid" class="avatar-grid"></div>
+      <button id="btn-start" class="btn btn-primary" disabled>Vào chơi!</button>
+    </section>
+
+    <section id="screen-lobby" class="screen" hidden>
+      <div class="me">
+        <span id="me-avatar" class="avatar-big"></span>
+        <span id="me-name" class="me-name"></span>
+        <button id="btn-edit-profile" class="btn btn-small" aria-label="Đổi tên">✏️</button>
+      </div>
+      <h2 class="title">Cùng đấu cờ nào!</h2>
+      <button id="btn-create-room" class="btn btn-primary" disabled>🏠 Tạo phòng</button>
+      <button id="btn-join-room" class="btn btn-secondary" disabled>🔑 Vào phòng</button>
+      <button id="btn-local" class="btn btn-accent">📱 2 bé chơi chung 1 iPad</button>
+      <p id="net-hint" class="hint small">Đang kết nối mạng...</p>
+    </section>
+
+    <section id="screen-sets" class="screen" hidden>
+      <h2 class="title">Chọn bộ cờ</h2>
+      <div id="set-grid" class="set-grid"></div>
+      <button id="btn-sets-back" class="btn btn-small btn-ghost">← Quay lại</button>
+    </section>
+
+    <section id="screen-join" class="screen" hidden>
+      <h2 class="title">Nhập mã phòng</h2>
+      <div id="code-slots" class="code-slots"></div>
+      <div id="keyboard" class="keyboard"></div>
+      <button id="btn-join-go" class="btn btn-primary" disabled>Vào phòng!</button>
+      <button id="btn-join-back" class="btn btn-small btn-ghost">← Quay lại</button>
+    </section>
+
+    <section id="screen-room" class="screen" hidden>
+      <p class="hint">Mã phòng — bảo bạn nhập mã này nhé</p>
+      <div id="room-code" class="room-code"></div>
+      <div class="room-players">
+        <div id="room-me" class="pcard"></div>
+        <div id="room-opp" class="pcard"></div>
+      </div>
+      <p id="room-set-label" class="hint">Bộ cờ</p>
+      <div id="room-sets" class="chips"></div>
+      <button id="btn-ready" class="btn btn-primary" disabled>Sẵn sàng!</button>
+      <button id="btn-room-leave" class="btn btn-small btn-ghost">← Rời phòng</button>
+    </section>
+
+    <section id="screen-game" class="screen screen-game" hidden>
+      <div id="panel-top" class="panel panel-flip">
+        <div class="panel-head"><span id="top-avatar"></span><span id="top-name"></span><span id="top-tick" class="tick" hidden>✅</span><b id="top-score" class="score">0</b></div>
+        <div id="top-options" class="options"></div>
+      </div>
+      <div class="stage">
+        <div class="timer"><div id="timer-bar" class="timer-bar"></div><span id="timer-num" class="timer-num">10</span></div>
+        <div class="qcount" id="qcount"></div>
+        <div id="flag" class="flag-box"></div>
+        <div id="feedback" class="feedback"></div>
+      </div>
+      <div id="panel-bottom" class="panel">
+        <div class="panel-head"><span id="bot-avatar"></span><span id="bot-name"></span><b id="bot-score" class="score">0</b></div>
+        <div id="bot-options" class="options"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+
+  <div id="popup" class="popup" hidden>
+    <div class="popup-card">
+      <div id="popup-emoji" class="popup-emoji"></div>
+      <h2 id="popup-title"></h2>
+      <p id="popup-detail"></p>
+      <button id="popup-again" class="btn btn-primary">🔄 Chơi lại</button>
+      <button id="popup-home" class="btn btn-secondary">🏠 Về sảnh</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

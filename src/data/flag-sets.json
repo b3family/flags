@@ -1,0 +1,111 @@
+{
+  "sets": [
+    {
+      "id": "dong-nam-a",
+      "name": "Đông Nam Á",
+      "icon": "🌴",
+      "countries": [
+        { "code": "vn", "name": "Việt Nam" },
+        { "code": "th", "name": "Thái Lan" },
+        { "code": "la", "name": "Lào" },
+        { "code": "kh", "name": "Campuchia" },
+        { "code": "mm", "name": "Myanmar" },
+        { "code": "my", "name": "Malaysia" },
+        { "code": "sg", "name": "Singapore" },
+        { "code": "id", "name": "Indonesia" },
+        { "code": "ph", "name": "Philippines" },
+        { "code": "bn", "name": "Brunei" },
+        { "code": "tl", "name": "Đông Timor" }
+      ]
+    },
+    {
+      "id": "chau-a",
+      "name": "Châu Á",
+      "icon": "🐼",
+      "countries": [
+        { "code": "jp", "name": "Nhật Bản" },
+        { "code": "kr", "name": "Hàn Quốc" },
+        { "code": "cn", "name": "Trung Quốc" },
+        { "code": "in", "name": "Ấn Độ" },
+        { "code": "mn", "name": "Mông Cổ" },
+        { "code": "np", "name": "Nepal" },
+        { "code": "pk", "name": "Pakistan" },
+        { "code": "sa", "name": "Ả Rập Xê Út" },
+        { "code": "tr", "name": "Thổ Nhĩ Kỳ" },
+        { "code": "ir", "name": "Iran" },
+        { "code": "lk", "name": "Sri Lanka" },
+        { "code": "bd", "name": "Bangladesh" }
+      ]
+    },
+    {
+      "id": "chau-au",
+      "name": "Châu Âu",
+      "icon": "🏰",
+      "countries": [
+        { "code": "fr", "name": "Pháp" },
+        { "code": "de", "name": "Đức" },
+        { "code": "it", "name": "Ý" },
+        { "code": "es", "name": "Tây Ban Nha" },
+        { "code": "pt", "name": "Bồ Đào Nha" },
+        { "code": "gb", "name": "Anh" },
+        { "code": "nl", "name": "Hà Lan" },
+        { "code": "be", "name": "Bỉ" },
+        { "code": "ch", "name": "Thụy Sĩ" },
+        { "code": "se", "name": "Thụy Điển" },
+        { "code": "no", "name": "Na Uy" },
+        { "code": "pl", "name": "Ba Lan" },
+        { "code": "gr", "name": "Hy Lạp" },
+        { "code": "ie", "name": "Ireland" }
+      ]
+    },
+    {
+      "id": "chau-phi",
+      "name": "Châu Phi",
+      "icon": "🦁",
+      "countries": [
+        { "code": "eg", "name": "Ai Cập" },
+        { "code": "za", "name": "Nam Phi" },
+        { "code": "ng", "name": "Nigeria" },
+        { "code": "ke", "name": "Kenya" },
+        { "code": "ma", "name": "Ma-rốc" },
+        { "code": "et", "name": "Ethiopia" },
+        { "code": "gh", "name": "Ghana" },
+        { "code": "dz", "name": "Algeria" },
+        { "code": "tn", "name": "Tunisia" },
+        { "code": "sn", "name": "Senegal" }
+      ]
+    },
+    {
+      "id": "chau-my",
+      "name": "Châu Mỹ",
+      "icon": "🦅",
+      "countries": [
+        { "code": "us", "name": "Mỹ" },
+        { "code": "ca", "name": "Canada" },
+        { "code": "mx", "name": "Mexico" },
+        { "code": "br", "name": "Brazil" },
+        { "code": "ar", "name": "Argentina" },
+        { "code": "cl", "name": "Chile" },
+        { "code": "co", "name": "Colombia" },
+        { "code": "pe", "name": "Peru" },
+        { "code": "cu", "name": "Cuba" },
+        { "code": "jm", "name": "Jamaica" }
+      ]
+    },
+    {
+      "id": "chau-dai-duong",
+      "name": "Châu Đại Dương",
+      "icon": "🐨",
+      "countries": [
+        { "code": "au", "name": "Úc" },
+        { "code": "nz", "name": "New Zealand" },
+        { "code": "fj", "name": "Fiji" },
+        { "code": "pg", "name": "Papua New Guinea" },
+        { "code": "ws", "name": "Samoa" },
+        { "code": "to", "name": "Tonga" },
+        { "code": "vu", "name": "Vanuatu" },
+        { "code": "sb", "name": "Quần đảo Solomon" }
+      ]
+    }
+  ]
+}
