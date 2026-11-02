@@ -50,8 +50,11 @@ let profile = loadProfile();
 
 // ---- điều hướng màn hình ----
 const screens = ['welcome', 'lobby', 'join', 'room', 'game'];
+/** Màn hình có nút QR: sảnh (mời máy khác mở game) và phòng chờ (mời vào đúng phòng). */
+const QR_SCREENS = ['lobby', 'room'];
 function show(name) {
   for (const s of screens) $(`screen-${s}`).hidden = s !== name;
+  $('btn-qr').hidden = !QR_SCREENS.includes(name);
 }
 
 // ---- mạng: đăng nhập ẩn danh ngầm khi mở app, tự thử lại nếu mất mạng ----
