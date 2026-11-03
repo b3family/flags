@@ -4,6 +4,9 @@ import { secondsLeft } from './scoring.js';
 import { beep } from './sound.js';
 import { buildShareUrl, parseRoomParam } from './share.js';
 import { drawQr } from './qr.js';
+import { summarizeMatch, formatWhen } from './history.js';
+import { reconcileProfile } from './profile.js';
+import { createOutbox } from './outbox.js';
 import * as net from './net.js';
 
 const AVATARS = ['🦁', '🐼', '🐯', '🐸', '🦊', '🐰', '🐨', '🦄', '🐙', '🐧', '🦖', '🐶'];
@@ -23,6 +26,10 @@ function el(tag, className, text) {
   if (text !== undefined) e.textContent = text;
   return e;
 }
+
+/** Tên nước theo mã cờ và tên bộ cờ, để hiển thị lịch sử. */
+const COUNTRY_NAME = new Map(sets.flatMap((s) => s.countries.map((c) => [c.code, c.name])));
+const SET_LABEL = new Map([...sets.map((s) => [s.id, `${s.icon} ${s.name}`]), ['ngau-nhien', '🎲 Ngẫu nhiên']]);
 
 const ERRORS = {
   ROOM_NOT_FOUND: 'Không thấy phòng này 🤔',
@@ -48,8 +55,35 @@ function saveProfile(p) {
 }
 let profile = loadProfile();
 
+/** localStorage, hoặc bộ nhớ tạm nếu trình duyệt chặn (chế độ riêng tư). */
+function safeStorage() {
+  try {
+    localStorage.getItem(PROFILE_KEY);
+    return localStorage;
+  } catch {
+    const mem = {};
+    return { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = String(v); } };
+  }
+}
+/** Kết quả trận chưa gửi được (mất mạng) chờ gửi lại, để không mất lịch sử. */
+const outbox = createOutbox(safeStorage());
+
+/**
+ * Gắn danh tính server (user id ẩn danh) vào hồ sơ lưu trên máy, và xin trình duyệt
+ * giữ dữ liệu bền hơn. Nếu playerId lưu trên máy khác user hiện tại nghĩa là phiên cũ đã mất.
+ */
+function adoptIdentity() {
+  navigator.storage?.persist?.().catch(() => {});
+  if (!profile) return;
+  const r = reconcileProfile(profile, net.getUserId());
+  if (r.status === 'same') return;
+  profile = r.profile;
+  saveProfile(profile);
+  if (r.status === 'changed') toast('Máy này mất phiên đăng nhập cũ, lịch sử cũ không xem lại được nữa 😢');
+}
+
 // ---- điều hướng màn hình ----
-const screens = ['welcome', 'lobby', 'join', 'room', 'game'];
+const screens = ['welcome', 'lobby', 'history', 'join', 'room', 'game'];
 /** Màn hình có nút QR: sảnh (mời máy khác mở game) và phòng chờ (mời vào đúng phòng). */
 const QR_SCREENS = ['lobby', 'room'];
 function show(name) {
@@ -65,12 +99,15 @@ let pendingRoom = parseRoomParam(location.search);
 function refreshNetButtons() {
   $('btn-create-room').disabled = !netReady;
   $('btn-join-room').disabled = !netReady;
+  $('btn-history').disabled = !netReady;
   $('net-hint').textContent = netReady ? '' : 'Đang kết nối mạng... cần có mạng để đấu cờ nhé.';
 }
 async function startNet() {
   try {
     await net.initNet();
     netReady = true;
+    adoptIdentity();
+    flushOutbox();
   } catch {
     netReady = false;
     setTimeout(startNet, 5000);
@@ -103,7 +140,9 @@ function updateStart() {
 }
 $('name-input').oninput = updateStart;
 $('btn-start').onclick = () => {
-  profile = { name: $('name-input').value.trim().slice(0, cfg.nameMaxLength), avatar: chosenAvatar };
+  // Giữ playerId cũ khi chỉ đổi tên/avatar, để không đứt lịch sử.
+  profile = { ...profile, name: $('name-input').value.trim().slice(0, cfg.nameMaxLength), avatar: chosenAvatar };
+  if (netReady) profile.playerId = net.getUserId();
   saveProfile(profile);
   goLobby();
   maybeJoinPending();
@@ -152,11 +191,11 @@ function stopMatch() {
   active = null;
 }
 
-function runMatch({ match, players, matchCfg, channel }) {
+function runMatch({ match, players, matchCfg, channel, roomStartedAt }) {
   stopMatch();
   $('popup').hidden = true;
   active = {
-    match, players, channel, cfg: matchCfg,
+    match, players, channel, cfg: matchCfg, roomStartedAt,
     pending: {}, buttons: [],
     startedAt: 0, revealed: false, selfTimedOut: false, over: false,
     ticker: null, nextTimer: null, forfeitTimer: null,
@@ -277,6 +316,41 @@ function reveal() {
   A.nextTimer = setTimeout(() => { match.next(); askQuestion(); }, cfg.revealDelayMs);
 }
 
+// ---- lưu lịch sử: nộp kết quả của mình, mất mạng thì giữ trong outbox để gửi lại ----
+/** Lỗi do dữ liệu/quyền: gửi lại cũng vô ích nên bỏ khỏi outbox. */
+const PERMANENT_ERRORS = new Set(['NOT_ALLOWED', 'BAD_RESULT']);
+let flushing = false;
+
+function saveResult(opponentLeft) {
+  const A = active;
+  outbox.add({
+    id: `${onlineCtx.code}:${A.roomStartedAt}`,
+    code: onlineCtx.code,
+    startedAt: A.roomStartedAt,
+    answers: A.match.results('a'),
+    opponentLeft,
+  });
+  flushOutbox();
+}
+
+async function flushOutbox() {
+  if (flushing || !netReady) return;
+  flushing = true;
+  try {
+    for (const item of outbox.all()) {
+      try {
+        await net.submitMatchResult(item.code, item.startedAt, item.answers, item.opponentLeft);
+        outbox.remove(item.id);
+      } catch (e) {
+        if (PERMANENT_ERRORS.has(e?.message)) outbox.remove(item.id);
+        else break; // mất mạng hoặc DB chưa cập nhật: giữ lại, thử lại lần sau
+      }
+    }
+  } finally {
+    flushing = false;
+  }
+}
+
 // ---- kết thúc: popup thắng / thua / hòa ----
 function showPopup({ kind, emoji, title, detail, sound }) {
   $('popup').className = `popup ${kind}`;
@@ -294,6 +368,7 @@ function endMatch() {
   const w = A.match.winner();
   const detail = `${A.players.a.name}: ${a} điểm  ·  ${A.players.b.name}: ${b} điểm`;
   net.finishRoom(onlineCtx.code).catch(() => {});
+  saveResult(false);
   if (w === 'draw') showPopup({ kind: 'draw', emoji: '🤝', title: 'Hòa nhau!', detail, sound: 'good' });
   else if (w === 'a') showPopup({ kind: 'win', emoji: '🏆', title: 'Bạn thắng!', detail, sound: 'win' });
   else showPopup({ kind: 'lose', emoji: '💪', title: 'Cố lên lần sau!', detail, sound: 'good' });
@@ -307,6 +382,7 @@ function forfeit() {
   clearInterval(A.ticker);
   clearTimeout(A.nextTimer);
   const { a, b } = A.match.totals;
+  saveResult(true);
   showPopup({
     kind: 'win', emoji: '🏆', title: 'Bạn thắng!', sound: 'win',
     detail: `${A.players.b.name} đã rời đi. ${A.players.a.name}: ${a} · ${A.players.b.name}: ${b}`,
@@ -492,6 +568,7 @@ function startOnlineMatch(room) {
     players: { a: mine, b: theirs },
     matchCfg,
     channel: ctx.channel,
+    roomStartedAt: room.started_at,
   });
 }
 
@@ -505,6 +582,90 @@ $('popup-again').onclick = () => guarded(async () => {
   renderRoom(room);
 });
 $('popup-home').onclick = () => exitRoom();
+
+// ===========================================================================
+// Lịch sử đấu
+// ===========================================================================
+const HISTORY_PAGE = 20;
+let historyOffset = 0;
+const OUTCOME = {
+  win: { icon: '🏆', text: 'Thắng' },
+  lose: { icon: '💪', text: 'Thua' },
+  draw: { icon: '🤝', text: 'Hòa' },
+  unfinished: { icon: '⏳', text: 'Chưa xong' },
+};
+
+$('btn-history').onclick = () => { show('history'); loadHistory(true); };
+$('btn-history-back').onclick = goLobby;
+$('btn-history-more').onclick = () => loadHistory(false);
+
+async function loadHistory(reset) {
+  if (reset) {
+    historyOffset = 0;
+    $('history-list').replaceChildren();
+    $('history-stats').replaceChildren(el('span', 'stat', 'Đang tải...'));
+    $('history-empty').hidden = true;
+    $('btn-history-more').hidden = true;
+    await flushOutbox(); // gửi nốt kết quả còn chờ để trận mới nhất có mặt
+  }
+  try {
+    const [stats, rows] = await Promise.all([
+      reset ? net.myStats() : null,
+      net.listMatches(historyOffset, HISTORY_PAGE),
+    ]);
+    if (stats) {
+      $('history-stats').replaceChildren(
+        el('span', 'stat', `🎮 ${stats.played} trận`), el('span', 'stat', `🏆 ${stats.wins}`),
+        el('span', 'stat', `💪 ${stats.losses}`), el('span', 'stat', `🤝 ${stats.draws}`),
+      );
+    }
+    const myId = net.getUserId();
+    $('history-list').append(...rows.map((row) => historyRow(summarizeMatch(row, myId))));
+    historyOffset += rows.length;
+    $('history-empty').hidden = historyOffset > 0;
+    $('btn-history-more').hidden = rows.length < HISTORY_PAGE;
+  } catch (e) {
+    $('history-stats').replaceChildren();
+    toast(errorText(e));
+  }
+}
+
+/** Một trận trong danh sách; bấm để mở/đóng chi tiết từng câu. */
+function historyRow(s) {
+  const o = OUTCOME[s.outcome];
+  const row = el('button', `hrow ${s.outcome}`);
+  const score = s.me.total === null || s.opp.total === null ? '' : `${s.me.total} – ${s.opp.total}`;
+  const top = el('div', 'hrow-top');
+  top.append(el('span', 'hav', s.opp.avatar), el('span', 'hname', `${o.icon} ${s.opp.name}`), el('span', 'hscore', score));
+  const meta = [formatWhen(s.when), SET_LABEL.get(s.setId) ?? s.setId, `${s.seconds}s`, o.text + (s.forfeit ? ' (bỏ cuộc)' : '')];
+  row.append(top, el('div', 'hmeta', meta.filter(Boolean).join(' · ')));
+
+  let detail = null;
+  row.onclick = () => {
+    if (detail) { detail.remove(); detail = null; return; }
+    detail = historyDetail(s);
+    row.append(detail);
+  };
+  return row;
+}
+
+/** Chi tiết từng câu: lá cờ, nước đúng, bé chọn gì, điểm và thời gian. */
+function historyDetail(s) {
+  const box = el('div', 'hdetail');
+  if (!s.answers.length) box.append(el('div', 'hmeta', 'Không có chi tiết từng câu.'));
+  for (const a of s.answers) {
+    const flag = el('span', /^[a-z]{2}$/.test(a.code) ? `fi fi-${a.code}` : 'fi');
+    const name = (c) => COUNTRY_NAME.get(c) ?? c;
+    const verdict = a.pick === a.code ? '✅' : a.pick === null ? '⏰ hết giờ' : `❌ chọn ${name(a.pick)}`;
+    const text = el('div', null, name(a.code));
+    text.append(el('div', 'hq-sub', verdict));
+    const secs = a.ms === null ? '' : ` · ${(a.ms / 1000).toFixed(1)}s`;
+    const q = el('div', 'hq');
+    q.append(flag, text, el('span', 'hq-pts', `+${a.points}${secs}`));
+    box.append(q);
+  }
+  return box;
+}
 
 // ---- khởi động ----
 renderAvatars();

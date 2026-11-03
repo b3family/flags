@@ -45,6 +45,37 @@ export const joinRoom = (code, profile) =>
   call('join_room', { p_code: code, p_name: profile.name, p_avatar: profile.avatar });
 
 export const setRoomSet = (code, setId) => call('set_room_set', { p_code: code, p_set_id: setId });
+/**
+ * Nộp kết quả của mình sau trận (idempotent, gọi lại an toàn).
+ * @param {string} code Mã phòng.
+ * @param {string} startedAt `started_at` của phòng lúc bắt đầu trận (định danh trận).
+ * @param {{code: string, pick: string|null, ms: number|null, points: number}[]} answers
+ * @param {boolean} [opponentLeft] Bé kia rời giữa trận.
+ */
+export const submitMatchResult = (code, startedAt, answers, opponentLeft = false) =>
+  call('submit_match_result', {
+    p_code: code, p_started_at: startedAt, p_answers: answers, p_opponent_left: opponentLeft,
+  });
+
+/**
+ * Các trận của mình, mới nhất trước (RLS chỉ trả trận của chính mình).
+ * @param {number} [offset]
+ * @param {number} [limit]
+ */
+export async function listMatches(offset = 0, limit = 20) {
+  const { data, error } = await client.from('matches').select('*')
+    .order('started_at', { ascending: false }).range(offset, offset + limit - 1);
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** @returns {Promise<{played: number, wins: number, losses: number, draws: number}>} */
+export async function myStats() {
+  const { data, error } = await client.rpc('my_match_stats');
+  if (error) throw new Error(error.message);
+  return data[0] ?? { played: 0, wins: 0, losses: 0, draws: 0 };
+}
+
 export const setRoomSeconds = (code, seconds) => call('set_room_seconds', { p_code: code, p_seconds: seconds });
 export const setReady = (code, ready) => call('set_ready', { p_code: code, p_ready: ready });
 export const finishRoom = (code) => call('finish_room', { p_code: code });

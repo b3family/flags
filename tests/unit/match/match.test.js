@@ -61,6 +61,43 @@ test('match: lateAnswer từ chối khi bé đã có đáp án thật hoặc câ
   assert.equal(m.totals.a, 9);
 });
 
+const quizWithOptions = [
+  { code: 'fr', answerIndex: 1, options: [{ code: 'de' }, { code: 'fr' }, { code: 'it' }, { code: 'es' }] },
+  { code: 'jp', answerIndex: 0, options: [{ code: 'jp' }, { code: 'kr' }, { code: 'cn' }, { code: 'vn' }] },
+];
+
+test('match: results trả về từng câu của một bé gồm lá cờ, nước đã chọn, ms và điểm', () => {
+  const m = createMatch(quizWithOptions, cfg);
+  m.answer('a', 1, 2000);
+  m.timeout();
+  m.next();
+  m.answer('a', 1, 500);
+  const r = m.results('a');
+  assert.deepEqual(r[0], { q: 0, code: 'fr', pick: 'fr', ms: 2000, points: 8 });
+  assert.deepEqual(r[1], { q: 1, code: 'jp', pick: 'kr', ms: 500, points: 0 });
+});
+
+test('match: results ghi pick=null và ms=null khi hết giờ không trả lời', () => {
+  const m = createMatch(quizWithOptions, cfg);
+  m.timeout();
+  assert.deepEqual(m.results('b'), [{ q: 0, code: 'fr', pick: null, ms: null, points: 0 }]);
+});
+
+test('match: results bỏ qua câu bé chưa có đáp án (chưa tới hoặc đang chờ)', () => {
+  const m = createMatch(quizWithOptions, cfg);
+  assert.deepEqual(m.results('a'), []);
+  m.answer('b', 0, 100);
+  assert.deepEqual(m.results('a'), []);
+});
+
+test('match: results phản ánh đáp án đến muộn thay cho câu bị tính hết giờ', () => {
+  const m = createMatch(quizWithOptions, cfg);
+  m.timeout();
+  m.next();
+  m.lateAnswer(0, 'b', 1, 4000);
+  assert.deepEqual(m.results('b')[0], { q: 0, code: 'fr', pick: 'fr', ms: 4000, points: 6 });
+});
+
 test('match: next reset đáp án, hết đề thì finished và có người thắng', () => {
   const m = createMatch(quiz, cfg);
   m.answer('a', 2, 0);

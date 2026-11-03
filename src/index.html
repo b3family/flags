@@ -38,7 +38,19 @@
       <h2 class="title">Cùng đấu cờ nào!</h2>
       <button id="btn-create-room" class="btn btn-primary" disabled>🏠 Tạo phòng</button>
       <button id="btn-join-room" class="btn btn-secondary" disabled>🔑 Vào phòng</button>
+      <button id="btn-history" class="btn btn-accent" disabled>📜 Lịch sử đấu</button>
       <p id="net-hint" class="hint small">Đang kết nối mạng...</p>
+    </section>
+
+    <section id="screen-history" class="screen screen-list" hidden>
+      <div class="list-head">
+        <button id="btn-history-back" class="btn btn-small" aria-label="Quay lại">←</button>
+        <h2 class="title">Lịch sử đấu 📜</h2>
+      </div>
+      <div id="history-stats" class="chips"></div>
+      <p id="history-empty" class="hint" hidden>Bé chưa đấu trận nào. Đi tạo phòng nhé!</p>
+      <div id="history-list" class="history-list"></div>
+      <button id="btn-history-more" class="btn btn-secondary" hidden>Xem thêm</button>
     </section>
 
     <section id="screen-join" class="screen" hidden>

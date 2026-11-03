@@ -47,8 +47,8 @@ html, body {
   padding-block: clamp(8px, 1.6dvh, 16px);
   overflow-y: auto;
 }
-.screen:not(.screen-game) > :first-child { margin-top: auto; }
-.screen:not(.screen-game) > :last-child { margin-bottom: auto; }
+.screen:not(.screen-game):not(.screen-list) > :first-child { margin-top: auto; }
+.screen:not(.screen-game):not(.screen-list) > :last-child { margin-bottom: auto; }
 
 .logo { font-size: clamp(2rem, 9vw, 4rem); margin: 0; color: var(--primary); text-align: center; }
 .title { font-size: clamp(1.6rem, 6vw, 2.2rem); margin: 0; text-align: center; }
@@ -308,6 +308,47 @@ html, body {
 }
 .chip.selected { border-color: var(--primary); background: #e9e4ff; }
 .chip:disabled { cursor: default; opacity: 0.9; }
+
+/* ---- Lịch sử đấu ---- */
+.screen-list { justify-content: flex-start; align-items: stretch; }
+.list-head { display: flex; align-items: center; gap: 10px; padding-right: 0; }
+.list-head .btn-small { flex: none; min-width: 52px; padding: 0 14px; }
+.list-head .title { margin: 0; text-align: left; }
+.stat {
+  padding: 4px clamp(10px, 3vw, 16px);
+  font-size: clamp(0.95rem, 3.4vw, 1.2rem);
+  font-weight: 800;
+  background: var(--card);
+  border: 3px solid #d9d2ff;
+  border-radius: 999px;
+}
+.history-list { display: flex; flex-direction: column; gap: 10px; }
+.hrow {
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 0;
+  border-left: 8px solid #d9d2ff;
+  border-radius: clamp(14px, 3vw, 20px);
+  padding: 10px 14px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}
+.hrow.win { border-left-color: var(--good); }
+.hrow.lose { border-left-color: var(--secondary); }
+.hrow.draw { border-left-color: var(--primary); }
+.hrow-top { display: flex; align-items: center; gap: 8px; font-size: clamp(1.05rem, 4vw, 1.4rem); font-weight: 800; }
+.hrow-top .hav { font-size: clamp(1.6rem, 6vw, 2.2rem); line-height: 1; }
+.hrow-top .hname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.hscore { margin-left: auto; white-space: nowrap; }
+.hmeta { margin-top: 2px; font-size: clamp(0.8rem, 2.8vw, 0.95rem); font-weight: 600; opacity: 0.7; }
+.hdetail { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; border-top: 2px dashed #e6e0ff; padding-top: 8px; }
+.hq { display: grid; grid-template-columns: clamp(40px, 11vw, 56px) 1fr auto; align-items: center; gap: 8px; font-size: clamp(0.9rem, 3.2vw, 1.1rem); font-weight: 700; }
+.hq .fi { display: block; width: 100%; aspect-ratio: 4 / 3; height: auto; font-size: 0; border-radius: 6px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15); }
+.hq-sub { font-size: 0.85em; font-weight: 600; opacity: 0.75; }
+.hq-pts { font-weight: 800; white-space: nowrap; }
 
 /* Màn hình thấp (iPhone SE...): thu gọn phòng chờ để vừa một màn hình */
 @media (max-height: 700px) {

@@ -43,6 +43,48 @@ revoke all on public.rooms from anon, authenticated;
 grant select on public.rooms to authenticated;
 
 -- ---------------------------------------------------------------------------
+-- Lịch sử trận đấu: mỗi trận một dòng, giữ vĩnh viễn (không có FK tới rooms nên
+-- xóa phòng không mất lịch sử). Metadata do server ghi lúc bắt đầu trận; mỗi bé
+-- chỉ gửi kết quả của chính mình qua submit_match_result.
+-- ---------------------------------------------------------------------------
+create table if not exists public.matches (
+  id               uuid primary key default gen_random_uuid(),
+  room_code        text not null,
+  started_at       timestamptz not null,
+  set_id           text not null,
+  question_seconds int not null,
+  host_id          uuid not null,
+  guest_id         uuid not null,
+  host_name        text not null,
+  host_avatar      text not null,
+  guest_name       text not null,
+  guest_avatar     text not null,
+  host_total       int,
+  guest_total      int,
+  -- [{code, pick, ms, points}] mỗi câu; lưu mã cờ nên lịch sử đúng cả khi dữ liệu bộ cờ đổi
+  host_answers     jsonb,
+  guest_answers    jsonb,
+  winner           text check (winner in ('host', 'guest', 'draw')),
+  ended_by         text check (ended_by in ('finished', 'forfeit')),
+  finished_at      timestamptz,
+  created_at       timestamptz not null default now(),
+  unique (room_code, started_at)
+);
+
+create index if not exists matches_host_idx on public.matches (host_id, started_at desc);
+create index if not exists matches_guest_idx on public.matches (guest_id, started_at desc);
+
+alter table public.matches enable row level security;
+
+drop policy if exists "players can read their matches" on public.matches;
+create policy "players can read their matches" on public.matches
+  for select to authenticated
+  using (auth.uid() = host_id or auth.uid() = guest_id);
+
+revoke all on public.matches from anon, authenticated;
+grant select on public.matches to authenticated;
+
+-- ---------------------------------------------------------------------------
 -- Tạo phòng: sinh mã 4 ký tự (bỏ O/0/I/1/L cho dễ đọc), bé tạo là chủ phòng.
 -- ---------------------------------------------------------------------------
 create or replace function public.create_room(p_name text, p_avatar text)
@@ -212,6 +254,17 @@ begin
          started_at = v_room.started_at
    where code = v_room.code
   returning * into v_room;
+
+  -- Trận bắt đầu: ghi vào lịch sử ngay (server ghi nên metadata đáng tin).
+  if v_room.status = 'playing' then
+    insert into public.matches (room_code, started_at, set_id, question_seconds,
+                                host_id, guest_id, host_name, host_avatar, guest_name, guest_avatar)
+    values (v_room.code, v_room.started_at, v_room.set_id, v_room.question_seconds,
+            v_room.host_id, v_room.guest_id, v_room.host_name, v_room.host_avatar,
+            coalesce(v_room.guest_name, ''), coalesce(v_room.guest_avatar, ''))
+    on conflict (room_code, started_at) do nothing;
+  end if;
+
   return v_room;
 end;
 $$;
@@ -274,6 +327,101 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Mỗi bé nộp kết quả của chính mình sau trận. Tổng điểm do server cộng từ từng câu.
+-- Khi đủ kết quả của cả hai thì server tính người thắng. p_opponent_left = true
+-- nghĩa là bé kia rời giữa trận: bé nộp thắng (bỏ cuộc). Gọi lại nhiều lần vẫn an toàn.
+-- Lỗi: NOT_AUTHENTICATED, NOT_ALLOWED, BAD_RESULT.
+-- ---------------------------------------------------------------------------
+create or replace function public.submit_match_result(
+  p_code text, p_started_at timestamptz, p_answers jsonb, p_opponent_left boolean default false)
+returns public.matches
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid   uuid := auth.uid();
+  v_m     public.matches;
+  v_side  text;
+  v_total int;
+  v_ok    boolean;
+begin
+  if v_uid is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  if p_answers is null or jsonb_typeof(p_answers) <> 'array' or jsonb_array_length(p_answers) > 20 then
+    raise exception 'BAD_RESULT';
+  end if;
+
+  -- Mỗi câu là object có points nguyên trong 0..15 (thời gian tối đa mỗi câu).
+  begin
+    select coalesce(sum((a->>'points')::int), 0),
+           coalesce(bool_and(jsonb_typeof(a) = 'object' and (a->>'points')::int between 0 and 15), true)
+      into v_total, v_ok
+      from jsonb_array_elements(p_answers) a;
+  exception when others then
+    raise exception 'BAD_RESULT';
+  end;
+  if not v_ok then raise exception 'BAD_RESULT'; end if;
+
+  select * into v_m from public.matches
+   where room_code = upper(btrim(p_code)) and started_at = p_started_at for update;
+  if not found then raise exception 'NOT_ALLOWED'; end if;
+
+  if v_uid = v_m.host_id then v_side := 'host';
+  elsif v_uid = v_m.guest_id then v_side := 'guest';
+  else raise exception 'NOT_ALLOWED';
+  end if;
+
+  -- Chỉ ghi phần của mình và chỉ ghi một lần.
+  if v_side = 'host' then
+    update public.matches set host_total = v_total, host_answers = p_answers
+     where id = v_m.id and host_answers is null;
+  else
+    update public.matches set guest_total = v_total, guest_answers = p_answers
+     where id = v_m.id and guest_answers is null;
+  end if;
+  select * into v_m from public.matches where id = v_m.id;
+
+  if v_m.ended_by is null then
+    if p_opponent_left then
+      update public.matches
+         set winner = v_side, ended_by = 'forfeit', finished_at = now()
+       where id = v_m.id;
+    elsif v_m.host_total is not null and v_m.guest_total is not null then
+      update public.matches
+         set winner = case when host_total > guest_total then 'host'
+                           when guest_total > host_total then 'guest'
+                           else 'draw' end,
+             ended_by = 'finished', finished_at = now()
+       where id = v_m.id;
+    end if;
+    select * into v_m from public.matches where id = v_m.id;
+  end if;
+
+  return v_m;
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Thống kê của bé đang đăng nhập (RLS tự giới hạn trong các trận của bé).
+-- ---------------------------------------------------------------------------
+create or replace function public.my_match_stats()
+returns table (played int, wins int, losses int, draws int)
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select
+    (count(*) filter (where winner is not null))::int,
+    (count(*) filter (where (winner = 'host' and host_id = auth.uid())
+                         or (winner = 'guest' and guest_id = auth.uid())))::int,
+    (count(*) filter (where (winner = 'guest' and host_id = auth.uid())
+                         or (winner = 'host' and guest_id = auth.uid())))::int,
+    (count(*) filter (where winner = 'draw'))::int
+  from public.matches;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Rời phòng: chủ phòng rời thì xóa phòng; bé thứ hai rời thì phòng về 'waiting'.
 -- ---------------------------------------------------------------------------
 create or replace function public.leave_room(p_code text)
@@ -310,6 +458,8 @@ revoke execute on function public.set_ready(text, boolean) from public, anon;
 revoke execute on function public.finish_room(text) from public, anon;
 revoke execute on function public.reset_room(text) from public, anon;
 revoke execute on function public.leave_room(text) from public, anon;
+revoke execute on function public.submit_match_result(text, timestamptz, jsonb, boolean) from public, anon;
+revoke execute on function public.my_match_stats() from public, anon;
 
 grant execute on function public.create_room(text, text) to authenticated;
 grant execute on function public.join_room(text, text, text) to authenticated;
@@ -319,6 +469,8 @@ grant execute on function public.set_ready(text, boolean) to authenticated;
 grant execute on function public.finish_room(text) to authenticated;
 grant execute on function public.reset_room(text) to authenticated;
 grant execute on function public.leave_room(text) to authenticated;
+grant execute on function public.submit_match_result(text, timestamptz, jsonb, boolean) to authenticated;
+grant execute on function public.my_match_stats() to authenticated;
 
 -- Bật Realtime cho bảng rooms (RLS vẫn áp dụng: mỗi bé chỉ nhận thay đổi của phòng mình).
 do $$

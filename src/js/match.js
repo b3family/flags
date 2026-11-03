@@ -35,7 +35,7 @@ export function createMatch(quiz, cfg) {
       if (this.finished || answers[player] !== null) return null;
       const correct = optionIndex === quiz[index].answerIndex;
       const points = scoreQuestion({ correct, elapsedMs }, cfg);
-      answers[player] = { optionIndex, correct, points };
+      answers[player] = { optionIndex, correct, points, elapsedMs };
       totals[player] += points;
       return points;
     },
@@ -46,7 +46,7 @@ export function createMatch(quiz, cfg) {
      */
     timeout(players = ['a', 'b']) {
       for (const p of players) {
-        if (answers[p] === null) answers[p] = { optionIndex: null, correct: false, points: 0 };
+        if (answers[p] === null) answers[p] = { optionIndex: null, correct: false, points: 0, elapsedMs: null };
       }
     },
 
@@ -60,9 +60,32 @@ export function createMatch(quiz, cfg) {
       if (!record || record.optionIndex !== null) return null;
       const correct = optionIndex === quiz[questionIndex].answerIndex;
       const points = scoreQuestion({ correct, elapsedMs }, cfg);
-      Object.assign(record, { optionIndex, correct, points });
+      Object.assign(record, { optionIndex, correct, points, elapsedMs });
       totals[player] += points;
       return points;
+    },
+
+    /**
+     * Kết quả từng câu của một bé, để lưu vào lịch sử. Bỏ qua câu bé chưa có đáp án.
+     * Lưu mã lá cờ và nước đã chọn (không lưu chỉ số đáp án) để lịch sử vẫn đúng khi
+     * dữ liệu bộ cờ thay đổi sau này.
+     * @param {'a'|'b'} player
+     * @returns {{q: number, code: string, pick: string|null, ms: number|null, points: number}[]}
+     */
+    results(player) {
+      const out = [];
+      history.forEach((rec, q) => {
+        const r = rec[player];
+        if (!r) return;
+        out.push({
+          q,
+          code: quiz[q].code,
+          pick: r.optionIndex === null ? null : quiz[q].options[r.optionIndex].code,
+          ms: r.elapsedMs === null ? null : Math.round(r.elapsedMs),
+          points: r.points,
+        });
+      });
+      return out;
     },
 
     /** Kết quả từng bé ở câu hiện tại. */
